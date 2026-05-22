@@ -1,9 +1,11 @@
+<!DOCTYPE html>
+<html lang="fr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VocabDrill</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>>
+<style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap');
 
 :root {
@@ -212,27 +214,8 @@ tr:hover td{background:rgba(232,255,71,.02)}
 .empty-s .ei{font-size:2.4rem;margin-bottom:10px}
 .empty-s p{font-size:.76rem;line-height:1.7}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-
-<!-- ── LOGIN MODAL ── -->
-<div id="login-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center">
-  <div style="background:var(--surf);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:16px">
-    <div style="font-family:var(--disp);font-size:1.4rem;font-weight:800;color:var(--accent)">Connexion</div>
-    <p style="font-size:.78rem;color:#b8b8d0;line-height:1.6">Connecte-toi pour synchroniser ta progression sur tous tes appareils.</p>
-    <input id="auth-email" type="email" placeholder="Email" autocomplete="email"
-      style="background:var(--surf2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.84rem;padding:11px 14px;border-radius:7px;outline:none;width:100%">
-    <input id="auth-pw" type="password" placeholder="Mot de passe"
-      style="background:var(--surf2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.84rem;padding:11px 14px;border-radius:7px;outline:none;width:100%">
-    <div id="auth-error" style="font-size:.74rem;color:var(--danger);min-height:1em"></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" style="flex:1" onclick="authSignIn()">Se connecter</button>
-      <button class="btn btn-sec"     style="flex:1" onclick="authSignUp()">Créer un compte</button>
-    </div>
-    <button class="btn btn-sec btn-sm" onclick="closeLogin()">Continuer sans compte</button>
-  </div>
-</div>
 
 <nav>
   <div class="logo">Vocab<span>Drill</span></div>
@@ -246,7 +229,6 @@ tr:hover td{background:rgba(232,255,71,.02)}
     <div class="badge-pill bp-streak" id="nav-streak">0 🔥</div>
     <div class="badge-pill bp-dec"    id="nav-dec">0 à copier</div>
     <div class="badge-pill bp-ent"    id="nav-ent">0 à réviser</div>
-    <button class="btn btn-sec btn-sm" id="nav-auth-btn" onclick="toggleLogin()" style="font-size:.68rem;padding:5px 11px">☁️ Connexion</button>
   </div>
 </nav>
 
@@ -1059,8 +1041,8 @@ function switchImportTab(tab) {
 // ════════════════════════════
 //  PDF IMPORT (PDF.js)
 // ════════════════════════════
-const PDFJS_URL    = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const SUPABASE_URL = 'https://uzyzwazohkrgpzojxukr.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_broNadv_8dqaXljfjgAnUw_pJabEKoC';
 
 function loadScript(src) {
   return new Promise((res, rej) => {
@@ -1208,127 +1190,6 @@ async function readPDFFile(file) {
     toast('Erreur PDF', 'err');
   }
 }
-
-// ════════════════════════════
-//  ☁️ SUPABASE CLOUD SYNC
-// ════════════════════════════
-
-// ⚙️ REMPLACE CES DEUX VALEURS avec les tiennes (Supabase → Settings → API)
-const SUPABASE_URL = 'https://uzyzwazohkrgpzojxukr.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_broNadv_8dqaXljfjgAnUw_pJabEKoC';
-
-let sb = null, currentUser = null, saveTimer = null;
-
-function initSupabase() {
-  if (SUPABASE_URL === 'COLLE_TON_URL_ICI') return; // pas encore configuré
-  try {
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    sb.auth.onAuthStateChange(async (event, session) => {
-      currentUser = session?.user || null;
-      updateAuthUI();
-      if (currentUser) {
-        await cloudLoad();
-        updateBadges();
-      }
-    });
-    sb.auth.getSession(); // restore session if already logged in
-  } catch(e) { console.warn('Supabase init failed', e); }
-}
-
-function updateAuthUI() {
-  const btn = document.getElementById('nav-auth-btn');
-  if (!btn) return;
-  if (currentUser) {
-    btn.textContent = '☁️ ' + currentUser.email.split('@')[0];
-    btn.title = 'Connecté · clic pour se déconnecter';
-    btn.onclick = authSignOut;
-  } else {
-    btn.textContent = '☁️ Connexion';
-    btn.onclick = toggleLogin;
-  }
-}
-
-function toggleLogin() {
-  const ov = document.getElementById('login-overlay');
-  ov.style.display = ov.style.display === 'none' ? 'flex' : 'none';
-}
-function closeLogin() {
-  document.getElementById('login-overlay').style.display = 'none';
-}
-
-async function authSignIn() {
-  if (!sb) { alert('Configure Supabase dans le code (URL + clé).'); return; }
-  const email = document.getElementById('auth-email').value.trim();
-  const pw    = document.getElementById('auth-pw').value;
-  document.getElementById('auth-error').textContent = '';
-  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
-  if (error) { document.getElementById('auth-error').textContent = error.message; return; }
-  closeLogin();
-  toast('✓ Connecté ! Progression chargée.', 'ok');
-}
-
-async function authSignUp() {
-  if (!sb) { alert('Configure Supabase dans le code (URL + clé).'); return; }
-  const email = document.getElementById('auth-email').value.trim();
-  const pw    = document.getElementById('auth-pw').value;
-  document.getElementById('auth-error').textContent = '';
-  const { error } = await sb.auth.signUp({ email, password: pw });
-  if (error) { document.getElementById('auth-error').textContent = error.message; return; }
-  document.getElementById('auth-error').style.color = 'var(--success)';
-  document.getElementById('auth-error').textContent = '✓ Compte créé ! Vérifie tes emails pour confirmer.';
-}
-
-async function authSignOut() {
-  if (!sb) return;
-  await sb.auth.signOut();
-  currentUser = null;
-  updateAuthUI();
-  toast('Déconnecté.', '');
-}
-
-// ── Charger la progression depuis le cloud ──
-async function cloudLoad() {
-  if (!sb || !currentUser) return;
-  try {
-    const { data } = await sb.from('user_progress')
-      .select('vocabulary, progress')
-      .eq('user_id', currentUser.id)
-      .single();
-    if (data) {
-      if (Array.isArray(data.vocabulary) && data.vocabulary.length > 0) vocabulary = data.vocabulary;
-      if (data.progress && typeof data.progress === 'object') progress = data.progress;
-    }
-  } catch(e) { console.warn('Cloud load error', e); }
-}
-
-// ── Sauvegarder (auto, 3s après la dernière action) ──
-function cloudScheduleSave() {
-  if (!sb || !currentUser) return;
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(cloudSave, 3000);
-}
-
-async function cloudSave() {
-  if (!sb || !currentUser) return;
-  try {
-    await sb.from('user_progress').upsert({
-      user_id:    currentUser.id,
-      vocabulary: vocabulary,
-      progress:   progress,
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' });
-  } catch(e) { console.warn('Cloud save error', e); }
-}
-
-// Injecter cloudScheduleSave dans les points de sauvegarde existants
-const _sm2Update  = sm2Update;
-sm2Update = function(w, q) { _sm2Update(w, q); cloudScheduleSave(); };
-
-const _decCheck = decCheck;
-// décCheck is inline, so hook into flush instead
-const _flush_orig = flush;
-
-initSupabase();
 
 // ════════════════════════════
 //  INIT
